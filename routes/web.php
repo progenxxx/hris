@@ -443,9 +443,9 @@ Route::middleware(['auth', 'verified', 'role:hrd_manager,superadmin'])->group(fu
     
     // Attendance Import Routes
     Route::get('/attendance/import', [AttendanceController::class, 'showImportPage'])
-        ->name('attendance.import');
+        ->name('timesheet.import');
     Route::post('/attendance/import', [AttendanceController::class, 'import'])
-        ->name('attendance.import.process');
+        ->name('timesheet.import.process');
     Route::get('/attendance/template/download', [AttendanceController::class, 'downloadTemplate'])
         ->name('attendance.template.download');
     
@@ -486,7 +486,7 @@ Route::middleware(['auth', 'verified', 'role:hrd_manager,superadmin'])->group(fu
     Route::get('/processattendance/download-template', [ProcessedAttendanceController::class, 'downloadTemplate'])
         ->name('processattendance.download-template');
     Route::post('/processattendance/import', [ProcessedAttendanceController::class, 'importAttendance'])
-        ->name('attendance.import');
+        ->name('processattendance.import');
     
     // Set holiday route
     Route::post('/attendance/set-holiday', [ProcessedAttendanceController::class, 'setHoliday'])

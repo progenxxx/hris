@@ -34,8 +34,11 @@ WORKDIR /var/www/html
 COPY . .
 
 # Create environment file for build
-RUN cp .env.example .env && \
+RUN echo "APP_NAME=Laravel" > .env && \
+    echo "APP_ENV=production" >> .env && \
     echo "APP_KEY=" >> .env && \
+    echo "APP_DEBUG=false" >> .env && \
+    echo "APP_URL=http://localhost" >> .env && \
     echo "VITE_APP_NAME=Laravel" >> .env
 
 # Install PHP dependencies

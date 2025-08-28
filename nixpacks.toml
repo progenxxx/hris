@@ -3,7 +3,7 @@ nixPkgs = ['php82', 'php82Packages.composer', 'nodejs-18_x', 'npm']
 
 [phases.install]
 cmds = [
-    'composer install --no-dev --optimize-autoloader --no-interaction',
+    'composer install --no-dev --optimize-autoloader --no-interaction --ignore-platform-reqs',
     'npm ci --only=production'
 ]
 
@@ -19,4 +19,4 @@ cmds = [
 cmd = 'php artisan serve --host=0.0.0.0 --port=$PORT'
 
 [variables]
-PHP_EXTENSIONS = 'gd,zip,bcmath,ctype,fileinfo,json,mbstring,openssl,pdo,tokenizer,xml,dom,xmlreader,xmlwriter,simplexml,iconv,intl'
+PHP_EXTENSIONS = 'bcmath,ctype,fileinfo,json,mbstring,openssl,pdo,tokenizer,xml,gd,zip,dom,xmlreader,xmlwriter,simplexml,iconv,intl,curl,session'

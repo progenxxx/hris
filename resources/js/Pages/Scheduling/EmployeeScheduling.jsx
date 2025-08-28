@@ -1274,12 +1274,13 @@ const EmployeeScheduling = () => {
 
     // Handle calendar schedule click
     const handleScheduleClick = (schedule) => {
-        setEditingSchedule(schedule);
+        setEditingSchedule(null); // Always open as new schedule
         setShowModal(true);
     };
 
     // Handle calendar date click
     const handleDateClick = (date) => {
+        setEditingSchedule(null); // Always open as new schedule
         setShowModal(true);
         // Could pre-fill the effective date with the clicked date
     };

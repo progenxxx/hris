@@ -1,1 +1,0 @@
-import{r as s,j as t}from"./app-C_ClQmDY.js";const a=s.forwardRef(({className:r,...o},e)=>t.jsx("input",{type:"checkbox",className:`h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 ${r}`,ref:e,...o}));a.displayName="Checkbox";export{a as C};

@@ -33,6 +33,11 @@ WORKDIR /var/www/html
 # Copy application files
 COPY . .
 
+# Create environment file for build
+RUN cp .env.example .env && \
+    echo "APP_KEY=" >> .env && \
+    echo "VITE_APP_NAME=Laravel" >> .env
+
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction --ignore-platform-reqs
 

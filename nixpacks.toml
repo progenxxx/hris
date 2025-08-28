@@ -19,4 +19,4 @@ cmds = [
 cmd = 'php artisan serve --host=0.0.0.0 --port=$PORT'
 
 [variables]
-PHP_EXTENSIONS = 'gd,zip,bcmath,ctype,fileinfo,json,mbstring,openssl,pdo,tokenizer,xml'
+PHP_EXTENSIONS = 'gd,zip,bcmath,ctype,fileinfo,json,mbstring,openssl,pdo,tokenizer,xml,dom,xmlreader,xmlwriter,simplexml,iconv,intl'

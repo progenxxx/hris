@@ -5,7 +5,8 @@
       "Read(C:\\tools\\php84/**)",
       "Bash(findstr:*)",
       "Read(C:\\tools\\php84/**)",
-      "Read(C:\\tools\\php84/**)"
+      "Read(C:\\tools\\php84/**)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

@@ -12,6 +12,7 @@ namespace PHPUnit\Framework\MockObject\Generator;
 use const PHP_EOL;
 use const PHP_MAJOR_VERSION;
 use const PHP_MINOR_VERSION;
+use const PHP_VERSION;
 use const PREG_OFFSET_CAPTURE;
 use const WSDL_CACHE_NONE;
 use function array_merge;
@@ -28,7 +29,6 @@ use function interface_exists;
 use function is_array;
 use function is_object;
 use function md5;
-use function method_exists;
 use function mt_rand;
 use function preg_match;
 use function preg_match_all;
@@ -42,6 +42,7 @@ use function strlen;
 use function strpos;
 use function substr;
 use function trait_exists;
+use function version_compare;
 use Exception;
 use Iterator;
 use IteratorAggregate;
@@ -68,7 +69,6 @@ use PropertyHookType;
 use ReflectionClass;
 use ReflectionMethod;
 use ReflectionObject;
-use ReflectionProperty;
 use SebastianBergmann\Type\ReflectionMapper;
 use SebastianBergmann\Type\Type;
 use SoapClient;
@@ -151,7 +151,7 @@ final class Generator
             $callOriginalMethods,
         );
 
-        $object = $this->getObject(
+        $object = $this->instantiate(
             $mock,
             $type,
             $callOriginalConstructor,
@@ -176,7 +176,7 @@ final class Generator
      * @param list<class-string> $interfaces
      *
      * @throws RuntimeException
-     * @throws UnknownTypeException
+     * @throws UnknownInterfaceException
      */
     public function testDoubleForInterfaceIntersection(array $interfaces, bool $mockObject, bool $callAutoload = true, bool $returnValueGeneration = true): MockObject|Stub
     {
@@ -186,7 +186,7 @@ final class Generator
 
         foreach ($interfaces as $interface) {
             if (!interface_exists($interface, $callAutoload)) {
-                throw new UnknownTypeException($interface);
+                throw new UnknownInterfaceException($interface);
             }
         }
 
@@ -386,7 +386,7 @@ final class Generator
             ],
         );
 
-        return $this->getObject(
+        return $this->instantiate(
             new MockTrait(
                 $classTemplate->render(),
                 $className['className'],
@@ -602,7 +602,7 @@ final class Generator
      * @throws ReflectionException
      * @throws RuntimeException
      */
-    private function getObject(MockType $mockClass, string $type = '', bool $callOriginalConstructor = false, array $arguments = [], bool $callOriginalMethods = false, ?object $proxyTarget = null, bool $returnValueGeneration = true): object
+    private function instantiate(MockType $mockClass, string $type = '', bool $callOriginalConstructor = false, array $arguments = [], bool $callOriginalMethods = false, ?object $proxyTarget = null, bool $returnValueGeneration = true): object
     {
         $className = $mockClass->generate();
 
@@ -848,7 +848,7 @@ final class Generator
                     $message,
                 );
             } catch (NoTestCaseObjectOnCallStackException) {
-                EventFacade::emitter()->testRunnerTriggeredDeprecation($message);
+                EventFacade::emitter()->testRunnerTriggeredPhpunitDeprecation($message);
             }
         }
 
@@ -1220,7 +1220,7 @@ final class Generator
      */
     private function properties(?ReflectionClass $class): array
     {
-        if (!method_exists(ReflectionProperty::class, 'isFinal')) {
+        if (version_compare('8.4.1', PHP_VERSION, '>')) {
             // @codeCoverageIgnoreStart
             return [];
             // @codeCoverageIgnoreEnd
@@ -1234,12 +1234,6 @@ final class Generator
         $properties = [];
 
         foreach ($class->getProperties() as $property) {
-            assert(method_exists($property, 'getHook'));
-            assert(method_exists($property, 'hasHooks'));
-            assert(method_exists($property, 'hasHook'));
-            assert(method_exists($property, 'isFinal'));
-            assert(class_exists(PropertyHookType::class));
-
             if (!$property->isPublic()) {
                 continue;
             }

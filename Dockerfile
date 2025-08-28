@@ -37,7 +37,7 @@ COPY . .
 RUN composer install --no-dev --optimize-autoloader --no-interaction --ignore-platform-reqs
 
 # Install Node.js dependencies and build assets
-RUN npm ci --only=production && npm run build
+RUN npm ci && npm run build && rm -rf node_modules
 
 # Set proper permissions
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache

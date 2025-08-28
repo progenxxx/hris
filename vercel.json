@@ -1,6 +1,6 @@
 {
   "framework": null,
-  "buildCommand": "npm ci && npm run build",
+  "buildCommand": "chmod +x node_modules/.bin/vite && npm run build",
   "outputDirectory": "public/build",
   "installCommand": "npm ci"
 }

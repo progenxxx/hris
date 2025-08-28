@@ -1,38 +1,28 @@
 FROM php:8.2-apache
 
-# Install system dependencies and PHP extensions
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     git \
     curl \
     libpng-dev \
-    libonig-dev \
-    libxml2-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
     libzip-dev \
     libicu-dev \
     zip \
     unzip \
     nodejs \
-    npm
+    npm \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install PHP extensions required by Laravel and phpoffice/phpspreadsheet
-RUN docker-php-ext-install \
-    pdo_mysql \
-    mbstring \
-    exif \
-    pcntl \
-    bcmath \
-    gd \
-    zip \
-    xml \
-    dom \
-    xmlreader \
-    xmlwriter \
-    simplexml \
-    iconv \
-    intl \
-    ctype \
-    fileinfo \
-    tokenizer
+# Configure and install PHP extensions
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) \
+        pdo_mysql \
+        bcmath \
+        gd \
+        zip \
+        intl
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer

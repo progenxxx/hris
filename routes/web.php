@@ -465,11 +465,11 @@ Route::middleware(['auth', 'verified', 'role:hrd_manager,superadmin'])->group(fu
     
     // Attendance CRUD Operations
     Route::get('/timesheet/attendance/{id}/edit', [BiometricController::class, 'editAttendance'])
-        ->name('attendance.edit');
+        ->name('timesheet.attendance.edit');
     Route::put('/timesheet/attendance/{id}', [BiometricController::class, 'updateAttendance'])
-        ->name('attendance.update');
+        ->name('timesheet.attendance.update');
     Route::delete('/timesheet/attendance/{id}', [BiometricController::class, 'deleteAttendance'])
-        ->name('attendance.delete');
+        ->name('timesheet.attendance.delete');
 
     // Processed Attendance Routes
     Route::get('/attendance', [ProcessedAttendanceController::class, 'index'])

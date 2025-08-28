@@ -216,7 +216,7 @@ const AttendanceReport = ({
 
     // Confirm delete
     const handleConfirmDelete = () => {
-        fetch(route('attendance.delete', selectedAttendance.id), {
+        fetch(route('timesheet.attendance.delete', selectedAttendance.id), {
             method: 'DELETE',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')

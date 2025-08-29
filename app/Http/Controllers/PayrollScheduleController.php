@@ -198,7 +198,7 @@ class PayrollScheduleController extends Controller
      */
     public function syncPayrollData(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'year' => 'required|integer|min:2020|max:2030',
             'month' => 'required|integer|min:1|max:12',
             'period_type' => 'required|in:1st_half,2nd_half',
@@ -209,6 +209,10 @@ class PayrollScheduleController extends Controller
             'sync_options.update_existing' => 'boolean',
             'sync_options.include_schedules' => 'boolean',
             'sync_options.include_attendance' => 'boolean',
+        ]);
+
+        Log::info('PayrollScheduleController@syncPayrollData - Validation passed', [
+            'validated_data' => $validated
         ]);
 
         try {
@@ -297,8 +301,19 @@ class PayrollScheduleController extends Controller
 
             $employee = Employee::with([
                 'employeeSchedules' => function($q) use ($startDate, $endDate) {
-                    $q->effectiveBetween($startDate, $endDate)
-                      ->orderBy('work_day');
+                    $q->where(function($subQ) use ($startDate, $endDate) {
+                        // Include schedules that overlap with the period at all
+                        $subQ->where(function($overlap) use ($startDate, $endDate) {
+                            // Schedule starts before period ends AND schedule ends after period starts
+                            $overlap->where('effective_date', '<=', $endDate)
+                                   ->where(function($end) use ($startDate) {
+                                       $end->whereNull('end_date')
+                                          ->orWhere('end_date', '>=', $startDate);
+                                   });
+                        });
+                    })
+                    ->where('status', 'active')
+                    ->orderBy('work_day');
                 }
             ])->findOrFail($employeeId);
 
@@ -504,6 +519,13 @@ class PayrollScheduleController extends Controller
         $existingSummary = PayrollSummary::forPeriod($year, $month, $periodType)
             ->where('employee_id', $employeeId)
             ->first();
+            
+        Log::info('PayrollScheduleController@syncEmployeePayrollData - Initial check for existing summary', [
+            'employee_id' => $employeeId,
+            'existing_summary_found' => $existingSummary ? true : false,
+            'existing_summary_id' => $existingSummary ? $existingSummary->id : null,
+            'sync_options' => $syncOptions
+        ]);
 
         if ($existingSummary && !$syncOptions['update_existing']) {
             return [
@@ -541,22 +563,116 @@ class PayrollScheduleController extends Controller
             $summaryData = array_merge($summaryData, $attendanceData);
         }
 
-        if ($existingSummary) {
-            // Update existing summary
-            $existingSummary->update($summaryData);
-            return [
-                'action' => 'updated',
-                'payroll_summary_id' => $existingSummary->id,
-                'data' => $summaryData
-            ];
-        } else {
-            // Create new summary
-            $newSummary = PayrollSummary::create($summaryData);
-            return [
-                'action' => 'created',
-                'payroll_summary_id' => $newSummary->id,
-                'data' => $summaryData
-            ];
+        // Filter out non-fillable fields to prevent mass assignment errors
+        $fillableFields = (new PayrollSummary())->getFillable();
+        $filteredData = array_intersect_key($summaryData, array_flip($fillableFields));
+        
+        // Ensure required fields have default values
+        if (!isset($filteredData['status'])) {
+            $filteredData['status'] = 'draft';
+        }
+        if (!isset($filteredData['payroll_status'])) {
+            $filteredData['payroll_status'] = 'pending';
+        }
+        
+        Log::info('PayrollScheduleController@syncEmployeePayrollData - Data filtered for mass assignment', [
+            'employee_id' => $employeeId,
+            'original_keys' => array_keys($summaryData),
+            'filtered_keys' => array_keys($filteredData),
+            'removed_keys' => array_diff(array_keys($summaryData), array_keys($filteredData))
+        ]);
+
+        try {
+            if ($existingSummary) {
+                // Update existing summary
+                $existingSummary->update($filteredData);
+                Log::info('PayrollScheduleController@syncEmployeePayrollData - Updated existing summary', [
+                    'employee_id' => $employeeId,
+                    'payroll_summary_id' => $existingSummary->id
+                ]);
+                return [
+                    'action' => 'updated',
+                    'payroll_summary_id' => $existingSummary->id,
+                    'data' => $filteredData
+                ];
+            } else {
+                // Double-check for existing record to handle race conditions
+                $existingCheck = PayrollSummary::forPeriod($year, $month, $periodType)
+                    ->where('employee_id', $employeeId)
+                    ->first();
+                    
+                if ($existingCheck) {
+                    // Record was created by another process, update it instead
+                    if ($syncOptions['update_existing']) {
+                        $existingCheck->update($filteredData);
+                        Log::info('PayrollScheduleController@syncEmployeePayrollData - Updated existing summary found in race condition', [
+                            'employee_id' => $employeeId,
+                            'payroll_summary_id' => $existingCheck->id
+                        ]);
+                        return [
+                            'action' => 'updated',
+                            'payroll_summary_id' => $existingCheck->id,
+                            'data' => $filteredData
+                        ];
+                    } else {
+                        Log::info('PayrollScheduleController@syncEmployeePayrollData - Skipped existing record found in race condition', [
+                            'employee_id' => $employeeId,
+                            'payroll_summary_id' => $existingCheck->id
+                        ]);
+                        return [
+                            'action' => 'skipped',
+                            'reason' => 'Record exists (race condition detected) and update_existing is false',
+                            'payroll_summary_id' => $existingCheck->id
+                        ];
+                    }
+                }
+                
+                // Create new summary
+                $newSummary = PayrollSummary::create($filteredData);
+                Log::info('PayrollScheduleController@syncEmployeePayrollData - Created new summary', [
+                    'employee_id' => $employeeId,
+                    'payroll_summary_id' => $newSummary->id
+                ]);
+                return [
+                    'action' => 'created',
+                    'payroll_summary_id' => $newSummary->id,
+                    'data' => $filteredData
+                ];
+            }
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            // Handle unique constraint violation specifically
+            Log::warning('PayrollScheduleController@syncEmployeePayrollData - Unique constraint violation, attempting to update existing record', [
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+            
+            // Try to find and update the existing record
+            $existingRecord = PayrollSummary::forPeriod($year, $month, $periodType)
+                ->where('employee_id', $employeeId)
+                ->first();
+                
+            if ($existingRecord && $syncOptions['update_existing']) {
+                $existingRecord->update($filteredData);
+                return [
+                    'action' => 'updated',
+                    'payroll_summary_id' => $existingRecord->id,
+                    'data' => $filteredData
+                ];
+            } else {
+                return [
+                    'action' => 'skipped',
+                    'reason' => 'Record exists (constraint violation) and update_existing is false',
+                    'payroll_summary_id' => $existingRecord ? $existingRecord->id : null
+                ];
+            }
+        } catch (\Exception $e) {
+            Log::error('PayrollScheduleController@syncEmployeePayrollData - Error during create/update', [
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'filtered_data' => $filteredData
+            ]);
+            throw $e;
         }
     }
 

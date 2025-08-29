@@ -575,12 +575,22 @@ const PayrollScheduleIntegration = () => {
         
         try {
             setIsLoading(true);
+            
+            // Get CSRF token
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
             const response = await axios.post('/payroll-schedule-integration/sync', {
-                year: filters.year,
-                month: filters.month,
+                year: parseInt(filters.year),
+                month: parseInt(filters.month),
                 period_type: filters.period_type,
                 employee_ids: employeeIds,
                 sync_options: syncOptions
+            }, {
+                headers: {
+                    'X-CSRF-TOKEN': token,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
             });
 
             console.log('Sync response:', response.data);
@@ -595,7 +605,10 @@ const PayrollScheduleIntegration = () => {
             }
         } catch (error) {
             console.error('Error syncing data:', error);
-            showToast(error.response?.data?.message || 'Failed to sync data', 'error');
+            const errorMessage = error.response?.data?.message || 
+                                error.response?.data?.errors || 
+                                'Failed to sync data';
+            showToast(errorMessage, 'error');
         } finally {
             setIsLoading(false);
         }
@@ -608,13 +621,22 @@ const PayrollScheduleIntegration = () => {
             setShowEmployeeModal(true);
             setEmployeeDetails(null);
 
+            // Get CSRF token
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
             const response = await axios.get(`/payroll-schedule-integration/employee/${employee.id}/details`, {
                 params: {
-                    year: filters.year,
-                    month: filters.month,
+                    year: parseInt(filters.year),
+                    month: parseInt(filters.month),
                     period_type: filters.period_type
+                },
+                headers: {
+                    'X-CSRF-TOKEN': token,
+                    'Accept': 'application/json'
                 }
             });
+
+            console.log('Employee details response:', response.data);
 
             if (response.data.success) {
                 setEmployeeDetails(response.data.data);
@@ -623,7 +645,8 @@ const PayrollScheduleIntegration = () => {
             }
         } catch (error) {
             console.error('Error loading employee details:', error);
-            showToast('Failed to load employee details', 'error');
+            const errorMessage = error.response?.data?.message || 'Failed to load employee details';
+            showToast(errorMessage, 'error');
         }
     };
 
@@ -635,11 +658,22 @@ const PayrollScheduleIntegration = () => {
 
         try {
             setIsLoading(true);
+            
+            // Get CSRF token
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
             const response = await axios.post('/payroll-schedule-integration/generate', {
-                year: filters.year,
-                month: filters.month,
+                year: parseInt(filters.year),
+                month: parseInt(filters.month),
                 period_type: filters.period_type,
-                department: filters.department
+                department: filters.department || null,
+                force_regenerate: false
+            }, {
+                headers: {
+                    'X-CSRF-TOKEN': token,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
             });
 
             if (response.data.success) {
@@ -650,7 +684,8 @@ const PayrollScheduleIntegration = () => {
             }
         } catch (error) {
             console.error('Error generating payroll:', error);
-            showToast(error.response?.data?.message || 'Failed to generate payroll summaries', 'error');
+            const errorMessage = error.response?.data?.message || 'Failed to generate payroll summaries';
+            showToast(errorMessage, 'error');
         } finally {
             setIsLoading(false);
         }

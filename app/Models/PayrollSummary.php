@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class PayrollSummary extends Model
@@ -429,15 +430,25 @@ class PayrollSummary extends Model
      */
     public static function calculatePeriodDates($year, $month, $periodType)
     {
-        $startDate = Carbon::create($year, $month, 1);
-        
-        if ($periodType === '1st_half') {
-            $endDate = Carbon::create($year, $month, 15);
-        } else {
-            $endDate = $startDate->copy()->endOfMonth();
+        try {
+            $startDate = Carbon::create($year, $month, 1);
+            
+            if ($periodType === '1st_half') {
+                $endDate = Carbon::create($year, $month, 15);
+            } else {
+                $endDate = $startDate->copy()->endOfMonth();
+            }
+            
+            return [$startDate, $endDate];
+        } catch (\Exception $e) {
+            Log::error('Error calculating period dates', [
+                'year' => $year,
+                'month' => $month,
+                'period_type' => $periodType,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
         }
-        
-        return [$startDate, $endDate];
     }
 
     /**
@@ -445,16 +456,34 @@ class PayrollSummary extends Model
      */
     public static function generateFromAttendance($employeeId, $year, $month, $periodType)
     {
-        [$startDate, $endDate] = self::calculatePeriodDates($year, $month, $periodType);
-        
-        // Get employee information
-        $employee = Employee::findOrFail($employeeId);
+        try {
+            Log::info('PayrollSummary::generateFromAttendance - Started', [
+                'employee_id' => $employeeId,
+                'year' => $year,
+                'month' => $month,
+                'period_type' => $periodType
+            ]);
+
+            [$startDate, $endDate] = self::calculatePeriodDates($year, $month, $periodType);
+            
+            Log::info('PayrollSummary::generateFromAttendance - Period dates calculated', [
+                'start_date' => $startDate->format('Y-m-d'),
+                'end_date' => $endDate->format('Y-m-d')
+            ]);
+            
+            // Get employee information
+            $employee = Employee::findOrFail($employeeId);
         
         // Get attendance records for the period (only non-posted records)
         $attendanceRecords = ProcessedAttendance::where('employee_id', $employeeId)
-            ->whereBetween('attendance_date', [$startDate, $endDate])
+            ->whereBetween('attendance_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
             ->where('posting_status', 'not_posted')
             ->get();
+            
+        Log::info('PayrollSummary::generateFromAttendance - Attendance records retrieved', [
+            'employee_id' => $employeeId,
+            'records_count' => $attendanceRecords->count()
+        ]);
         
         // Initialize summary values
         $summary = [
@@ -464,8 +493,8 @@ class PayrollSummary extends Model
             'cost_center' => $employee->CostCenter,
             'department' => $employee->Department,
             'line' => $employee->Line,
-            'period_start' => $startDate,
-            'period_end' => $endDate,
+            'period_start' => $startDate->format('Y-m-d'),
+            'period_end' => $endDate->format('Y-m-d'),
             'period_type' => $periodType,
             'year' => $year,
             'month' => $month,
@@ -550,7 +579,7 @@ class PayrollSummary extends Model
         // Get posted benefit data
         $benefit = Benefit::where('employee_id', $employeeId)
             ->where('cutoff', $cutoff)
-            ->whereBetween('date', [$startDate, $endDate])
+            ->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
             ->where('is_posted', true)
             ->latest('date_posted')
             ->first();
@@ -569,7 +598,7 @@ class PayrollSummary extends Model
         // Get posted deduction data
         $deduction = Deduction::where('employee_id', $employeeId)
             ->where('cutoff', $cutoff)
-            ->whereBetween('date', [$startDate, $endDate])
+            ->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
             ->where('is_posted', true)
             ->latest('date_posted')
             ->first();
@@ -583,6 +612,23 @@ class PayrollSummary extends Model
             $summary['other_deductions'] = $deduction->other_deductions ?? 0;
         }
         
+        Log::info('PayrollSummary::generateFromAttendance - Summary generated successfully', [
+            'employee_id' => $employeeId,
+            'days_worked' => $summary['days_worked']
+        ]);
+        
         return $summary;
+        
+        } catch (\Exception $e) {
+            Log::error('PayrollSummary::generateFromAttendance - Error occurred', [
+                'employee_id' => $employeeId,
+                'year' => $year,
+                'month' => $month,
+                'period_type' => $periodType,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
     }
 }

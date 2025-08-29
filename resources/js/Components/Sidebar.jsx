@@ -311,12 +311,12 @@ const Sidebar = ({ showSidebar = true }) => {
             allowedRoles: ['superadmin', 'hrd_manager'],
             items: [
                 { label: 'DTR', path: '/payroll-summaries-page' },
-                /* { label: 'Attendance Report', path: '/timesheets/dtr' }, */
                 { label: 'Process Attendance', path: '/attendance' },
                 { label: 'Manual Entry', path: '/timesheet/manual-entry' },
                 { label: 'Biometrics', path: '/biometric-devices' },
-                { label: 'Import Attendance', path: '/attendance/import' },
-                { label: 'Employee Schedule', path: '/employee-scheduling' }
+                { label: 'Employee Schedule', path: '/employee-scheduling' },
+                { label: 'PA2-Integration', path: '/payroll-schedule-integration' },
+                { label: 'Import Attendance', path: '/attendance/import' }
             ]
         },
         {

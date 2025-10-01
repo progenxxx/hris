@@ -39,12 +39,12 @@ WORKDIR /var/www/html
 COPY . .
 
 # Create environment file for build
-RUN echo "APP_NAME=Laravel" > .env && \
+RUN echo "APP_NAME=HRIS" > .env && \
     echo "APP_ENV=production" >> .env && \
     echo "APP_KEY=" >> .env && \
     echo "APP_DEBUG=false" >> .env && \
-    echo "APP_URL=http://localhost" >> .env && \
-    echo "VITE_APP_NAME=Laravel" >> .env
+    echo "APP_URL=${APP_URL:-http://localhost}" >> .env && \
+    echo "VITE_APP_NAME=HRIS" >> .env
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction --ignore-platform-reqs
